@@ -1,9 +1,19 @@
+import { Todos } from "@prisma/client";
 import type { NextPage } from "next";
 import Head from "next/head";
+import React, { useState } from "react";
 import { trpc } from "../utils/trpc";
 
 const Home: NextPage = () => {
-  const { data, isLoading, error } = trpc.list.getList.useQuery();
+  const [name, setName] = useState<Todos["name"]>("");
+
+  const ctx = trpc.useContext();
+  const mutation = trpc.todos.addTodo.useMutation({
+    onSuccess: () => {
+      ctx.todos.list.invalidate();
+    },
+  });
+  const todos = trpc.todos.list.useQuery();
 
   return (
     <>
@@ -13,8 +23,28 @@ const Home: NextPage = () => {
         <link rel="icon" href="/favicon.ico" />
       </Head>
 
-      {isLoading && "Loading.."}
-      {data ? JSON.stringify(data) : JSON.stringify(error)}
+      <input
+        className="m-4 border-2 border-black p-2"
+        type="text"
+        onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+          setName(e.target.value)
+        }
+      />
+      {name}
+      <button
+        onClick={() => {
+          mutation.mutate({ name });
+        }}
+      >
+        Gönder
+      </button>
+      <div>
+        <ul>
+          {todos.data?.todos.map((todo) => (
+            <li key={todo.id}>{todo.name}</li>
+          ))}
+        </ul>
+      </div>
     </>
   );
 };
