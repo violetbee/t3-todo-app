@@ -108,7 +108,7 @@ const Home: NextPage = () => {
                     >
                       <TiTickOutline />
                     </button>
-                    <p className="text-xl leading-none">{todo.name}</p>
+                    <p className="w-11/12 break-words text-xl">{todo.name}</p>
                   </li>
                 ))
               )}
