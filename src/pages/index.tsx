@@ -1,22 +1,35 @@
-import { Todos } from "@prisma/client";
 import type { NextPage } from "next";
+import { Todos } from "@prisma/client";
 import Head from "next/head";
 import React, { useState } from "react";
 import { TiTickOutline } from "react-icons/ti";
 import { FiSend } from "react-icons/fi";
-import { useMutationProvider } from "../context/mutation";
+import { trpc } from "../utils/trpc";
 
 const Home: NextPage = () => {
   const [name, setName] = useState<Todos["name"]>("");
-  const [isActive, setIsActive] = useState<Todos["checked"]>(false);
-  const { todos, addTodoMutation, isTodosLoading } = useMutationProvider();
+  const [activeTab, setActiveTab] = useState("activeTodos");
 
-  const addTodoHandler = (e: React.MouseEvent<HTMLElement>) => {
-    e.preventDefault();
-    addTodoMutation.mutate({ name });
-  };
+  const ctx = trpc.useContext();
 
-  console.log(todos);
+  const { data: todos, isLoading: isTodosLoading } = trpc.todos.list.useQuery();
+
+  const addTodoMutation = trpc.todos.addTodo.useMutation({
+    onSuccess: () => {
+      ctx.todos.list.invalidate();
+    },
+  });
+
+  const { data: completedTodos, isLoading: isCompletedTodosLoading } =
+    trpc.todos.getActive.useQuery();
+
+  const setTodoMutation = trpc.todos.setTodo.useMutation({
+    onSuccess: () => {
+      ctx.todos.list.invalidate();
+      ctx.todos.getActive.invalidate();
+    },
+  });
+
   return (
     <>
       <Head>
@@ -35,46 +48,97 @@ const Home: NextPage = () => {
             type="text"
           />
           <button
-            onClick={addTodoHandler}
+            onClick={(e) => {
+              e.preventDefault();
+              addTodoMutation.mutate({ name });
+            }}
             className="flex flex-1 items-center justify-center rounded-md bg-orange-500 p-2 text-2xl"
           >
             <FiSend style={{ color: "white" }} />
           </button>
         </div>
         <div className="mt-2 w-[400px]">
-          <ul className="flex w-full flex-col divide-y-2 divide-slate-400 rounded-t-md bg-gray-200">
-            {isTodosLoading ? (
-              <div className="flex items-center justify-center p-20">
-                Loading..
-              </div>
-            ) : (
-              todos.map((todo) => (
-                <li key={todo.id} className="flex items-center gap-1 p-2">
-                  <button
-                    onClick={(e) => {
-                      e.preventDefault();
-                      setIsActive(!isActive);
-                    }}
-                    className="rounded-full border-4 border-green-700 text-2xl"
-                  >
-                    <TiTickOutline />
-                  </button>
-                  <p className="text-xl leading-none">{todo.name}</p>
-                </li>
-              ))
-            )}
-          </ul>
-          <div className="hidden h-48 w-full bg-gray-400"></div>
+          {activeTab === "activeTodos" && (
+            <ul className="flex w-full flex-col divide-y-2 divide-slate-400 rounded-t-md bg-gray-200">
+              {isTodosLoading ? (
+                <div className="flex items-center justify-center p-20">
+                  Loading..
+                </div>
+              ) : (
+                todos?.map((todo) => (
+                  <li key={todo.id} className="flex items-center gap-1 p-2">
+                    <button
+                      onClick={() => {
+                        setTodoMutation.mutate({
+                          id: todo.id,
+                          checked: !todo.checked,
+                        });
+                      }}
+                      className={`rounded-full border-4  text-2xl ${
+                        todo.checked ? "border-green-800" : "border-gray-800"
+                      }`}
+                    >
+                      <TiTickOutline />
+                    </button>
+                    <p className="text-xl leading-none">{todo.name}</p>
+                  </li>
+                ))
+              )}
+            </ul>
+          )}
+          {activeTab === "completedTodos" && (
+            <ul className="flex w-full flex-col divide-y-2 divide-slate-400 rounded-t-md bg-gray-200">
+              {isCompletedTodosLoading ? (
+                <div className="flex items-center justify-center p-20">
+                  Loading..
+                </div>
+              ) : (
+                completedTodos?.map((todo) => (
+                  <li key={todo.id} className="flex items-center gap-1 p-2">
+                    <button
+                      onClick={() => {
+                        setTodoMutation.mutate({
+                          id: todo.id,
+                          checked: !todo.checked,
+                        });
+                      }}
+                      className={`rounded-full border-4  text-2xl ${
+                        todo.checked ? "border-green-800" : "border-gray-800"
+                      }`}
+                    >
+                      <TiTickOutline />
+                    </button>
+                    <p className="text-xl leading-none">{todo.name}</p>
+                  </li>
+                ))
+              )}
+            </ul>
+          )}
           <div className="hidden h-48 w-full bg-gray-400"></div>
         </div>
         <div className="flex w-[400px]">
-          <button className="flex w-1/3 justify-center rounded-bl-md bg-slate-300 p-2 duration-200 hover:bg-slate-400">
+          <button
+            onClick={() => {
+              setActiveTab("activeTodos");
+            }}
+            className="flex w-1/3 justify-center rounded-bl-md bg-slate-300 p-2 duration-200 hover:bg-slate-400"
+          >
             Active
           </button>
-          <button className="flex w-1/3 justify-center bg-slate-300 p-2 duration-200 hover:bg-slate-400">
+          <button
+            onClick={() => {
+              setActiveTab("completedTodos");
+            }}
+            className="flex w-1/3 justify-center bg-slate-300 p-2 duration-200 hover:bg-slate-400"
+          >
             Completed
           </button>
-          <button className="flex w-1/3 justify-center rounded-br-md bg-slate-300 p-2 duration-200 hover:bg-slate-400">
+          <button
+            onClick={() => {
+              setActiveTab("archivedTodos");
+            }}
+            className="flex w-1/3 justify-center rounded-br-md bg-slate-300 p-2 duration-200 hover:bg-slate-400"
+          >
             Archived
           </button>
         </div>

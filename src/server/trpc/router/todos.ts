@@ -7,8 +7,22 @@ export const todosRouter = router({
       orderBy: {
         createdAt: "desc",
       },
+      where: {
+        checked: false,
+      },
     });
     return data;
+  }),
+  getActive: publicProcedure.query(async ({ ctx }) => {
+    const activeTodos = await ctx.prisma.todos.findMany({
+      orderBy: {
+        createdAt: "desc",
+      },
+      where: {
+        checked: true,
+      },
+    });
+    return activeTodos;
   }),
   addTodo: publicProcedure
     .input(
@@ -30,8 +44,8 @@ export const todosRouter = router({
         checked: z.boolean(),
       })
     )
-    .mutation(({ ctx, input }) => {
-      const update = ctx.prisma.todos.update({
+    .mutation(async ({ ctx, input }) => {
+      const update = await ctx.prisma.todos.update({
         where: {
           id: input.id,
         },
